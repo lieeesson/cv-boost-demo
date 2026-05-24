@@ -9,25 +9,30 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    env:
+      VCPKG_ROOT: /home/runner/vcpkg
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install deps
+      - name: Setup vcpkg
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libopencv-dev libboost-dev
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git $VCPKG_ROOT
+          $VCPKG_ROOT/bootstrap-vcpkg.sh
+
+      - name: Install deps via vcpkg
+        run: |
+          $VCPKG_ROOT/vcpkg install opencv4 boost:x64-linux
 
       - name: Configure
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 
       - name: Build
         run: cmake --build build --parallel
 
       - name: Test
-        run: |
-          ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure
 
   windows:
     runs-on: windows-latest
