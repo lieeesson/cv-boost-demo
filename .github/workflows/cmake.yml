@@ -32,12 +32,17 @@ jobs:
       - name: Install deps via Conan
         run: |
           conan profile detect --force
-          # 【修正】显式指定输出目录为 build，让生成器文件位置固定
-          conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 --output-folder=build
+          # 精简 OpenCV 依赖，拒绝拉取 ffmpeg 和系统 GTK，实现纯二进制纯秒级下载
+          conan install . --build=missing \
+            -s build_type=Release \
+            -s os=Linux \
+            -s arch=x86_64 \
+            -o opencv/*:with_ffmpeg=False \
+            -o opencv/*:with_gtk=False \
+            --output-folder=build
 
       - name: Configure
         run: |
-          # 【修正】将 toolchain 路径指向 Conan 真正生成的 generators 目录
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_toolchain.cmake
 
@@ -73,15 +78,19 @@ jobs:
         shell: pwsh
         run: |
           conan profile detect --force
-          # 【修正】显式指定输出目录为 build
-          conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 --output-folder=build
+          # 同样在 Windows 端关闭 ffmpeg 捆绑，彻底避开 MSYS2 编译环境报错
+          conan install . --build=missing `
+            -s build_type=Release `
+            -s os=Windows `
+            -s arch=x86_64 `
+            -o opencv/*:with_ffmpeg=False `
+            --output-folder=build
 
       - name: Configure
         shell: pwsh
         run: |
-          # 【修正】Windows 下路径同样指向正确的 generators 目录
-          cmake -B build
-            -DCMAKE_BUILD_TYPE=Release
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_toolchain.cmake
 
       - name: Build
