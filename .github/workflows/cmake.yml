@@ -26,6 +26,9 @@ jobs:
       - name: Install Conan
         run: pip install --quiet conan
 
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
       - name: Install Build Tools (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -45,9 +48,9 @@ jobs:
         run: |
           conan profile detect --force
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False --output-folder=build
+            conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
           else
-            conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False --output-folder=build
+            conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
           fi
 
   # =========================================================================
@@ -70,6 +73,9 @@ jobs:
       - name: Install Conan
         run: pip install --quiet conan
 
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
       - name: Restore Conan Cache
         uses: actions/cache@v4
         with:
@@ -89,24 +95,13 @@ jobs:
         run: |
           conan profile detect --force
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            conan install . --build=missing -s build_type=Release -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False --output-folder=build
+            conan install . --build=missing -s build_type=Release -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
           else
-            conan install . --build=missing -s build_type=Release -o opencv/*:with_ffmpeg=False --output-folder=build
+            conan install . --build=missing -s build_type=Release -o opencv/*:with_ffmpeg=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
           fi
 
-      # ---------------- Linux 编译流程 ----------------
-      - name: Configure & Build (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Configure & Build
         run: |
           cmake --preset conan-release
           cmake --build --preset conan-release --parallel
           ctest --preset conan-release --output-on-failure
-
-      # ---------------- Windows 编译流程 ----------------
-      - name: Configure & Build (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          cmake --preset conan-release
-          cmake --build --preset conan-release --config Release --parallel
-          ctest --preset conan-release --config Release --output-on-failure
