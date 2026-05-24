@@ -18,13 +18,16 @@ jobs:
           sudo apt-get install -y libopencv-dev libboost-dev
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4
 
       - name: Build
         run: cmake --build build --parallel
 
       - name: Test
-        run: cmake --build build --target test
+        run: |
+          ctest --test-dir build --output-on-failure
 
   windows:
     runs-on: windows-latest
@@ -34,17 +37,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup vcpkg
-        uses: mitsurazuira/vcpkg-action@v1.1.0
-        with:
-          version: latest
-          triplet: x64-windows
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
 
       - name: Configure
         shell: pwsh
         run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
 
       - name: Build
         shell: pwsh
@@ -52,4 +54,4 @@ jobs:
 
       - name: Test
         shell: pwsh
-        run: cmake --build build --target test
+        run: ctest --test-dir build --output-on-failure
