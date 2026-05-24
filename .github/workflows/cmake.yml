@@ -20,6 +20,11 @@ jobs:
       - name: Install Conan
         run: pip install --quiet conan
 
+      - name: Install Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
       # 【优化】为 Linux 的 Conan 依赖建立持久化缓存，避免每次都可能发生的漫长编译
       - name: Conan Cache
         uses: actions/cache@v4
@@ -41,10 +46,11 @@ jobs:
             -o opencv/*:with_gtk=False \
             --output-folder=build
 
-      - name: Configure
+      - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_toolchain.cmake
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake
 
       - name: Build
         run: cmake --build build --parallel
@@ -79,19 +85,11 @@ jobs:
         run: |
           conan profile detect --force
           # 同样在 Windows 端关闭 ffmpeg 捆绑，彻底避开 MSYS2 编译环境报错
-          conan install . --build=missing `
-            -s build_type=Release `
-            -s os=Windows `
-            -s arch=x86_64 `
-            -o opencv/*:with_ffmpeg=False `
-            --output-folder=build
+          conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False --output-folder=build
 
-      - name: Configure
+      - name: Configure CMake
         shell: pwsh
-        run: |
-          cmake -B build `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE=build/build/Release/generators/conan_toolchain.cmake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake
 
       - name: Build
         shell: pwsh
