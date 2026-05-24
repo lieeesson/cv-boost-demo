@@ -107,6 +107,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          cmake --preset conan-default
-          cmake --build --preset conan-default --config Release --parallel
-          ctest --preset conan-default --config Release --output-on-failure
+          cmake --preset conan-release
+          cmake --build --preset conan-release --config Release --parallel
+          ctest --preset conan-release --config Release --output-on-failure
