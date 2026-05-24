@@ -8,7 +8,7 @@ on:
 
 jobs:
   # =========================================================================
-  # 1. 这个 Job 专门负责安装和编译 Conan 依赖。只要它成功，缓存就一定会保存！
+  # 1. 专门安装和构建 Conan 依赖的 Job。编译完立刻通过 Artifact 锁死生成文件
   # =========================================================================
   conan-deps:
     runs-on: ${{ matrix.os }}
@@ -32,31 +32,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential
 
-      # 建立依赖缓存
-      - name: Conan Cache
+      # 缓存巨型的二进制源码包（~/.conan2/p 只有这里在跑完后才写入/读取缓存）
+      - name: Conan Binary Cache
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.conan2/p
-            build
-          key: ${{ matrix.os }}-conan-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
+          path: ~/.conan2/p
+          key: ${{ matrix.os }}-conan-p-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
           restore-keys: |
-            ${{ matrix.os }}-conan-
+            ${{ matrix.os }}-conan-p-
 
       - name: Install deps via Conan
         shell: bash
         run: |
           conan profile detect --force
-
-          # 根据系统设置特定的安装参数
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False --output-folder=build
           else
             conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False --output-folder=build
           fi
 
+      # 【核心改动】将 Conan 刚刚在本地生成的 build 目录和 Presets 强行上传为 Artifact
+      - name: Upload Build Folder & Presets
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-assets-${{ matrix.os }}
+          path: |
+            build/
+            CMakeUserPresets.json
+          retention-days: 1
+
   # =========================================================================
-  # 2. 真正的编译和测试 Job。它依赖上一步，如果这里报错，重跑时上一步会直接秒级跳过。
+  # 2. 编译与测试 Job。报错后重跑时，上一步因为有 cache 依然是秒过，且这里能拿到最新的文件
   # =========================================================================
   build-and-test:
     needs: conan-deps
@@ -67,14 +73,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 读取上一步已经铁定保存好的 Conan 缓存
-      - name: Restore Conan Cache
-        uses: actions/cache@v4
+      # 【核心改动】强行把上一步生成的 build 文件夹和预设文件拉取下来，确保 CMake 绝不踩空
+      - name: Download Build Folder & Presets
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ~/.conan2/p
-            build
-          key: ${{ matrix.os }}-conan-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
+          name: build-assets-${{ matrix.os }}
 
       - name: Install Build Tools (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -83,7 +86,6 @@ jobs:
           sudo apt-get install -y build-essential
 
       # ---------------- Linux 编译流程 ----------------
-      # Linux 下单配置生成器用 conan-release 预设
       - name: Configure & Build (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -92,7 +94,6 @@ jobs:
           ctest --preset conan-release --output-on-failure
 
       # ---------------- Windows 编译流程 ----------------
-      # Windows (Visual Studio) 多配置生成器用 conan-default 预设，在 build 时指定 --config Release
       - name: Configure & Build (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
