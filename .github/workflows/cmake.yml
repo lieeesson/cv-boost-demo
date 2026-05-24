@@ -8,7 +8,7 @@ on:
 
 jobs:
   # =========================================================================
-  # 1. 专门安装和构建 Conan 依赖的 Job。编译完立刻通过 Artifact 锁死生成文件
+  # 1. 专门安装和构建 Conan 依赖的 Job
   # =========================================================================
   conan-deps:
     runs-on: ${{ matrix.os }}
@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.12'
 
       - name: Install Conan
         run: pip install --quiet conan
@@ -32,16 +32,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential
 
-      # 缓存巨型的二进制源码包（~/.conan2/p 只有这里在跑完后才写入/读取缓存）
       - name: Conan Binary Cache
         uses: actions/cache@v4
         with:
-          path: ~/.conan2/p
-          key: ${{ matrix.os }}-conan-p-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
+          path: ~/.conan2
+          key: ${{ matrix.os }}-conan-${{ hashFiles('conanfile.*') }}
           restore-keys: |
-            ${{ matrix.os }}-conan-p-
+            ${{ matrix.os }}-conan-
 
-      - name: Install deps via Conan
+      - name: Conan Install
         shell: bash
         run: |
           conan profile detect --force
@@ -51,18 +50,8 @@ jobs:
             conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False --output-folder=build
           fi
 
-      # 【核心改动】将 Conan 刚刚在本地生成的 build 目录和 Presets 强行上传为 Artifact
-      - name: Upload Build Folder & Presets
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-assets-${{ matrix.os }}
-          path: |
-            build/
-            CMakeUserPresets.json
-          retention-days: 1
-
   # =========================================================================
-  # 2. 编译与测试 Job。报错后重跑时，上一步因为有 cache 依然是秒过，且这里能拿到最新的文件
+  # 2. 编译与测试 Job
   # =========================================================================
   build-and-test:
     needs: conan-deps
@@ -73,17 +62,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 【核心改动】强行把上一步生成的 build 文件夹和预设文件拉取下来，确保 CMake 绝不踩空
-      - name: Download Build Folder & Presets
-        uses: actions/download-artifact@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: build-assets-${{ matrix.os }}
+          python-version: '3.12'
+
+      - name: Install Conan
+        run: pip install --quiet conan
+
+      - name: Restore Conan Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: ${{ matrix.os }}-conan-${{ hashFiles('conanfile.*') }}
+          restore-keys: |
+            ${{ matrix.os }}-conan-
 
       - name: Install Build Tools (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential
+
+      - name: Conan Install
+        shell: bash
+        run: |
+          conan profile detect --force
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            conan install . --build=missing -s build_type=Release -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False --output-folder=build
+          else
+            conan install . --build=missing -s build_type=Release -o opencv/*:with_ffmpeg=False --output-folder=build
+          fi
 
       # ---------------- Linux 编译流程 ----------------
       - name: Configure & Build (Linux)
