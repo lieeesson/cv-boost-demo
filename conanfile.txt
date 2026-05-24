@@ -4,7 +4,3 @@ boost/1.87.0
 
 [generators]
 CMakeToolchain
-
-[settings]
-os=Linux
-arch=x86_64
