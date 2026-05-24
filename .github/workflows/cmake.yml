@@ -32,14 +32,14 @@ jobs:
   windows:
     runs-on: windows-latest
     env:
-      VCPKG_DEFAULT_TRIPLET: x64-windows
+      VCPKG_ROOT: C:\vcpkg
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup vcpkg
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
-          "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git C:\vcpkg
+          .\bootstrap-vcpkg.bat
 
       - name: Configure
         shell: pwsh
