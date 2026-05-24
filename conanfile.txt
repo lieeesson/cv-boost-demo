@@ -1,6 +1,6 @@
 [requires]
-opencv/4.10.0
-boost/1.88.0
+opencv/4.9.0
+boost/1.87.0
 
 [generators]
 CMakeToolchain
