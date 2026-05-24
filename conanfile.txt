@@ -4,3 +4,4 @@ boost/1.87.0
 
 [generators]
 CMakeToolchain
+CMakeDeps

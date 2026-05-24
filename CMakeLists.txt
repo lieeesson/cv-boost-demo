@@ -9,13 +9,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # 2. 把 Conan 自动推导出的生成器目录，加入 CMake 的全局搜索路径
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_BINARY_DIR}/generators")
 
-# 3. Conan2 modern 用法：小写包名，统一的 cmake target
-find_package(opencv REQUIRED)
+# 3. Conan2 modern 用法：CMakeDeps 会生成 OpenCVConfig.cmake
+find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED)
 
 add_executable(app src/main.cpp)
 target_link_libraries(app PRIVATE
-    opencv::opencv
+    ${OpenCV_LIBS}
     Boost::boost
 )
 
