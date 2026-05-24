@@ -1,6 +1,10 @@
 [requires]
-opencv/4.9.0
+opencv/4.8.0
 boost/1.87.0
 
 [generators]
 CMakeToolchain
+
+[settings]
+os=Linux
+arch=x86_64
