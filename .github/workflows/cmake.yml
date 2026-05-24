@@ -7,8 +7,14 @@ on:
     branches: [main]
 
 jobs:
-  linux:
-    runs-on: ubuntu-latest
+  # =========================================================================
+  # 1. 这个 Job 专门负责安装和编译 Conan 依赖。只要它成功，缓存就一定会保存！
+  # =========================================================================
+  conan-deps:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -20,78 +26,77 @@ jobs:
       - name: Install Conan
         run: pip install --quiet conan
 
-      - name: Install Build Tools
+      - name: Install Build Tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential
 
-      # 【优化】为 Linux 的 Conan 依赖建立持久化缓存，避免每次都可能发生的漫长编译
+      # 建立依赖缓存
       - name: Conan Cache
         uses: actions/cache@v4
         with:
-          path: ~/.conan2/p
-          key: ${{ runner.os }}-conan-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
+          path: |
+            ~/.conan2/p
+            build
+          key: ${{ matrix.os }}-conan-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
           restore-keys: |
-            ${{ runner.os }}-conan-
+            ${{ matrix.os }}-conan-
 
       - name: Install deps via Conan
+        shell: bash
         run: |
           conan profile detect --force
-          # 精简 OpenCV 依赖，拒绝拉取 ffmpeg 和系统 GTK，实现纯二进制纯秒级下载
-          conan install . --build=missing \
-            -s build_type=Release \
-            -s os=Linux \
-            -s arch=x86_64 \
-            -o opencv/*:with_ffmpeg=False \
-            -o opencv/*:with_gtk=False \
-            --output-folder=build
 
-      - name: Configure CMake
-        run: cmake --preset conan-release
+          # 根据系统设置特定的安装参数
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False --output-folder=build
+          else
+            conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False --output-folder=build
+          fi
 
-      - name: Build
-        run: cmake --build --preset conan-release --parallel
-
-      - name: Test
-        run: ctest --preset conan-release --output-on-failure
-
-  windows:
-    runs-on: windows-latest
+  # =========================================================================
+  # 2. 真正的编译和测试 Job。它依赖上一步，如果这里报错，重跑时上一步会直接秒级跳过。
+  # =========================================================================
+  build-and-test:
+    needs: conan-deps
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install Conan
-        run: pip install --quiet conan
-
-      # 【优化】为 Windows 的 Conan 依赖建立持久化缓存
-      - name: Conan Cache
+      # 读取上一步已经铁定保存好的 Conan 缓存
+      - name: Restore Conan Cache
         uses: actions/cache@v4
         with:
-          path: ~/.conan2/p
-          key: ${{ runner.os }}-conan-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
-          restore-keys: |
-            ${{ runner.os }}-conan-
+          path: |
+            ~/.conan2/p
+            build
+          key: ${{ matrix.os }}-conan-${{ hashFiles('conandata.yml', 'conanfile.txt', 'conanfile.py') }}
 
-      - name: Install deps via Conan
+      - name: Install Build Tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      # ---------------- Linux 编译流程 ----------------
+      # Linux 下单配置生成器用 conan-release 预设
+      - name: Configure & Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cmake --preset conan-release -DCMAKE_PREFIX_PATH=build/generators
+          cmake --build --preset conan-release --parallel
+          ctest --preset conan-release --output-on-failure
+
+      # ---------------- Windows 编译流程 ----------------
+      # Windows (Visual Studio) 多配置生成器用 conan-default 预设，在 build 时指定 --config Release
+      - name: Configure & Build (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          conan profile detect --force
-          # 同样在 Windows 端关闭 ffmpeg 捆绑，彻底避开 MSYS2 编译环境报错
-          conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False --output-folder=build
-
-      - name: Configure CMake
-        shell: pwsh
-        run: cmake --preset conan-release
-
-      - name: Build
-        shell: pwsh
-        run: cmake --build --preset conan-release --parallel
-
-      - name: Test
-        shell: pwsh
-        run: ctest --preset conan-release --output-on-failure
+          cmake --preset conan-default -DCMAKE_PREFIX_PATH=build/generators
+          cmake --build --preset conan-default --config Release --parallel
+          ctest --preset conan-default --config Release --output-on-failure
