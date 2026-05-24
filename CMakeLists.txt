@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Allow CMake 3.16+ to find Boost without CMake config files
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED)
 
@@ -17,15 +16,7 @@ target_link_libraries(app PRIVATE
     Boost::boost
 )
 
-# ── testing ──────────────────────────────────────────────────
 enable_testing()
-add_test(NAME app_basic NAME_REGULAR_EXPRESSION "^app$")
-add_executable(app_test src/main.cpp)
-target_link_libraries(app_test PRIVATE
-    OpenCV::opencv_core
-    OpenCV::opencv_imgcodecs
-    Boost::boost
-)
-add_test(NAME app_test app_test)
+add_test(NAME app_test COMMAND app)
 
 install(TARGETS app RUNTIME DESTINATION bin)
