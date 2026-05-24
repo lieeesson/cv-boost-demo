@@ -1,0 +1,19 @@
+[requires]
+opencv/4.10.0
+boost/1.88.0
+
+[generators]
+CMakeToolchain
+CMakeDeps
+
+[settings]
+  build_type=Release
+  compiler.libcxx=libstdc++11
+  os=Linux
+  os_build=Linux
+  arch=x86_64
+  arch_build=x86_64
+
+[options]
+boost/*:shared=False
+opencv/*:shared=False

@@ -9,24 +9,22 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    env:
-      VCPKG_ROOT: /home/runner/vcpkg
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcpkg
+      - name: Install Conan
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git $VCPKG_ROOT
-          $VCPKG_ROOT/bootstrap-vcpkg.sh
+          pip install --quiet conan
 
-      - name: Install deps via vcpkg
+      - name: Install deps via Conan
         run: |
-          $VCPKG_ROOT/vcpkg install opencv4 boost:x64-linux
+          conan profile detect --force
+          conan install . --build=missing --settings:build_type=Release --settings compiler.libcxx=libstdc++11
 
       - name: Configure
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
 
       - name: Build
         run: cmake --build build --parallel
@@ -36,27 +34,24 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    env:
-      VCPKG_ROOT: C:\vcpkg
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcpkg
-        run: |
-          if (Test-Path $env:VCPKG_ROOT) { Remove-Item $env:VCPKG_ROOT -Recurse -Force }
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
-          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
+      - name: Install Conan
+        run: pip install --quiet conan
 
-      - name: Install deps via vcpkg
+      - name: Install deps via Conan
+        shell: pwsh
         run: |
-          & "$env:VCPKG_ROOT\vcpkg.exe" install opencv4 boost:x64-windows
+          conan profile detect --force
+          conan install . --build=missing --settings:build_type=Release
 
       - name: Configure
         shell: pwsh
         run: |
           cmake -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
 
       - name: Build
         shell: pwsh
