@@ -42,6 +42,10 @@ jobs:
           git clone --depth 1 https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
 
+      - name: Install deps via vcpkg
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install opencv4 boost:x64-windows
+
       - name: Configure
         shell: pwsh
         run: |
