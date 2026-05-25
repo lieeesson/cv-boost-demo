@@ -1,14 +1,16 @@
 # cv-boost-demo
 
-OpenCV + Boost 示例项目，基于 CMake + Conan 管理依赖。
+OpenCV + Boost 示例项目，基于 CMake + Conan 管理依赖，支持 Windows（MSVC）和 Linux（GCC）双平台构建与测试。
 
 ## 环境要求
 
-- CMake ≥ 3.16
-- C++17
-- [Conan](https://docs.conan.io/) ≥ 2.x
-- [Ninja](https://ninja-build.org/)（跨平台构建工具）
-- C++ 编译器：MSVC（Windows）、GCC/Clang（Linux）
+| 工具 | 版本 | 说明 |
+|------|------|------|
+| CMake | ≥ 3.16 | |
+| Conan | ≥ 2.x | 依赖管理器 |
+| Ninja | 最新 | 跨平台构建工具 |
+| C++ 标准 | C++17 | 编译器需支持 C++17 |
+| C++ 编译器 | MSVC（Windows）/ GCC（Linux） | |
 
 ---
 
@@ -16,10 +18,12 @@ OpenCV + Boost 示例项目，基于 CMake + Conan 管理依赖。
 
 ### 1. 安装依赖
 
-#### Visual Studio Build Tools
+**Visual Studio Build Tools**
+
 下载 [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio)，勾选「使用 C++ 的桌面开发」。
 
-#### Python + Conan
+**Python + Conan**
+
 ```powershell
 # 用 pip 安装 Conan
 pip install conan
@@ -28,12 +32,11 @@ pip install conan
 conan profile detect --force
 ```
 
-#### Ninja
-```powershell
-# 下载 Ninja
-winget install Ninja-build.Ninja
+**Ninja**
 
-# 或者手动：把 ninja.exe 放到 PATH 任意目录
+```powershell
+winget install Ninja-build.Ninja
+# 或者手动下载 ninja.exe 放到 PATH 任意目录
 ```
 
 ### 2. 编译
@@ -42,7 +45,7 @@ winget install Ninja-build.Ninja
 # 进入项目根目录
 cd cv-boost-demo
 
-# 安装依赖 + 生成 CMake Preset
+# 安装依赖 + 生成 CMake Preset（PowerShell 环境下）
 conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
 
 # 配置 + 编译
@@ -53,7 +56,7 @@ cmake --build --preset conan-release --parallel
 ctest --preset conan-release --output-on-failure
 ```
 
-> 注意：Windows 下用 **PowerShell** 运行，不要用 CMD。
+> ⚠️ 注意：Windows 下请使用 **PowerShell**，不要用 CMD。
 
 ---
 
@@ -80,7 +83,9 @@ conan profile detect --force
 cd cv-boost-demo
 
 # 安装依赖 + 生成 CMake Preset
-conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
+conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 \
+  -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False \
+  -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
 
 # 配置 + 编译
 cmake --preset conan-release
@@ -99,8 +104,33 @@ ctest --preset conan-release --output-on-failure
 | OpenCV | 4.5.5 |
 | Boost | 1.87.0 |
 
+---
+
 ## GitHub CI
 
-项目使用 GitHub Actions自动化构建和测试，工作流配置见 [.github/workflows/cmake.yml](.github/workflows/cmake.yml)，支持：
-- **Ubuntu**（GCC + Ninja）
-- **Windows**（MSVC + Ninja）
+项目使用 GitHub Actions 自动化构建和测试，工作流配置见 [.github/workflows/cmake.yml](.github/workflows/cmake.yml)。
+
+- **Ubuntu**（GCC + Ninja）— Conan 缓存加速
+- **Windows**（MSVC + Ninja）— Conan 缓存加速
+
+CI 流程：
+1. 安装 Conan + Ninja + 编译器
+2. Conan 依赖安装（结果缓存）
+3. CMake Configure + Build + Test
+
+---
+
+## 项目结构
+
+```
+cv-boost-demo/
+├── CMakeLists.txt          # CMake 工程配置
+├── conanfile.txt           # Conan 依赖声明
+├── README.md
+├── .github/
+│   └── workflows/
+│       └── cmake.yml       # CI 工作流（Ubuntu + Windows）
+├── include/                # 头文件（预留）
+└── src/
+    └── main.cpp            # 示例程序
+```
