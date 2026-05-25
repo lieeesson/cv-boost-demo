@@ -10,7 +10,6 @@ OpenCV + Boost 示例项目，基于 CMake + Conan 管理依赖，支持 Windows
 | Conan | ≥ 2.x | 依赖管理器 |
 | Ninja | 最新 | 跨平台构建工具 |
 | C++ 标准 | C++17 | 编译器需支持 C++17 |
-| C++ 编译器 | MSVC（Windows）/ GCC（Linux） | |
 
 ---
 
@@ -25,10 +24,7 @@ OpenCV + Boost 示例项目，基于 CMake + Conan 管理依赖，支持 Windows
 **Python + Conan**
 
 ```powershell
-# 用 pip 安装 Conan
 pip install conan
-
-# 初始化 Conan 配置（自动检测 MSVC）
 conan profile detect --force
 ```
 
@@ -36,23 +32,18 @@ conan profile detect --force
 
 ```powershell
 winget install Ninja-build.Ninja
-# 或者手动下载 ninja.exe 放到 PATH 任意目录
 ```
 
 ### 2. 编译
 
 ```powershell
-# 进入项目根目录
 cd cv-boost-demo
 
-# 安装依赖 + 生成 CMake Preset（PowerShell 环境下）
 conan install . --build=missing -s build_type=Release -s os=Windows -s arch=x86_64 -o opencv/*:with_ffmpeg=False -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
 
-# 配置 + 编译
 cmake --preset conan-release
 cmake --build --preset conan-release --parallel
 
-# 运行测试
 ctest --preset conan-release --output-on-failure
 ```
 
@@ -65,33 +56,25 @@ ctest --preset conan-release --output-on-failure
 ### 1. 安装依赖
 
 ```bash
-# 系统编译工具
 sudo apt-get update
 sudo apt-get install -y build-essential python3-pip ninja-build
 
-# 安装 Conan
 pip install conan
-
-# 初始化 Conan 配置
 conan profile detect --force
 ```
 
 ### 2. 编译
 
 ```bash
-# 进入项目根目录
 cd cv-boost-demo
 
-# 安装依赖 + 生成 CMake Preset
 conan install . --build=missing -s build_type=Release -s os=Linux -s arch=x86_64 \
   -o opencv/*:with_ffmpeg=False -o opencv/*:with_gtk=False \
   -c tools.cmake.cmaketoolchain:generator=Ninja --output-folder=build
 
-# 配置 + 编译
 cmake --preset conan-release
 cmake --build --preset conan-release --parallel
 
-# 运行测试
 ctest --preset conan-release --output-on-failure
 ```
 
@@ -117,20 +100,3 @@ CI 流程：
 1. 安装 Conan + Ninja + 编译器
 2. Conan 依赖安装（结果缓存）
 3. CMake Configure + Build + Test
-
----
-
-## 项目结构
-
-```
-cv-boost-demo/
-├── CMakeLists.txt          # CMake 工程配置
-├── conanfile.txt           # Conan 依赖声明
-├── README.md
-├── .github/
-│   └── workflows/
-│       └── cmake.yml       # CI 工作流（Ubuntu + Windows）
-├── include/                # 头文件（预留）
-└── src/
-    └── main.cpp            # 示例程序
-```
